@@ -17,8 +17,8 @@ export default function App() {
   }, [theme])
 
   const isLoading = loading || kvLoading
-  // Unauthenticated: auth resolved AND user is null
-  const isUnauthenticated = !loading && user === null
+  // Unauthenticated: auth resolved AND user is null AND not loading
+  const isUnauthenticated = !loading && !kvLoading && user === null
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">

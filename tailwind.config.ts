@@ -7,7 +7,14 @@ const config: Config = {
   ],
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        primary: 'rgb(99 102 241)',
+        'primary-foreground': 'rgb(255 255 255)',
+        background: 'rgb(255 255 255)',
+        foreground: 'rgb(15 23 42)',
+      },
+    },
   },
   plugins: [],
 };

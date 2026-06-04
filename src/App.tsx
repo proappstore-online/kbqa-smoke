@@ -1,13 +1,20 @@
 import { useProAuth, useTheme } from '@proappstore/sdk/hooks'
-import { ProfileMenu, SignInButton } from '@proappstore/sdk/ui'
+import { ProfileMenu, SignInButton, ThemeToggle } from '@proappstore/sdk/ui'
 import { useEffect } from 'react'
 import { app } from './app'
 import { useCounter } from './useCounter'
 
-export default function App() {
+interface AppProps {
+  kvLoading?: boolean
+}
+
+export default function App({ kvLoading: kvLoadingProp = false }: AppProps) {
   const { user, loading } = useProAuth(app)
   const theme = useTheme(app)
-  const { count, kvLoading, increment } = useCounter(user)
+  const { count, kvLoading: kvLoadingHook, increment } = useCounter(user)
+
+  // Merge external kvLoading prop (for future parent wiring) with hook's kvLoading
+  const kvLoading = kvLoadingProp || kvLoadingHook
 
   // Apply data-theme to <html> so Tailwind dark: variants respond
   useEffect(() => {
@@ -17,21 +24,19 @@ export default function App() {
   }, [theme])
 
   const isLoading = loading || kvLoading
-  // Unauthenticated: auth resolved AND user is null
-  const isUnauthenticated = !loading && user === null
-  // Authenticated AND KV hydration complete
-  const isReady = !loading && !kvLoading && user !== null
+  // Unauthenticated: auth resolved AND user is null AND not loading
+  const isUnauthenticated = !loading && !kvLoading && user === null
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/*
         Top bar — exactly 2 direct children:
-        left slot: ThemeToggleButton
-        right slot: SignInButton (unauthenticated) | ProfileMenu (authenticated)
+        left slot : <ThemeToggle /> (SDK ui component)
+        right slot: <SignInButton> when unauth, <ProfileMenu> when auth/loading
       */}
       <header className="h-12 flex items-center justify-between px-4">
-        {/* Left slot: inline theme toggle */}
-        <ThemeToggleButton theme={theme} />
+        {/* Left slot: SDK ThemeToggle — no props */}
+        <ThemeToggle />
 
         {/* Right slot: auth control */}
         {isUnauthenticated ? (
@@ -61,7 +66,12 @@ export default function App() {
           )}
         </div>
 
-        {/* Increment button — only shown when authenticated */}
+        {/* Unauthenticated: sign-in CTA in main area (separate from header SignInButton) */}
+        {isUnauthenticated && (
+          <SignInButton app={app} label="Sign in to start counting" />
+        )}
+
+        {/* Authenticated (or loading): increment button */}
         {!isUnauthenticated && (
           <button
             onClick={increment}
@@ -74,68 +84,5 @@ export default function App() {
         )}
       </main>
     </div>
-  )
-}
-
-// Theme toggle button in the left slot of the top bar.
-function ThemeToggleButton({ theme }: { theme: string | null }) {
-  function toggle() {
-    const next = theme === 'dark' ? 'light' : 'dark'
-    document.documentElement.setAttribute('data-theme', next)
-    try {
-      localStorage.setItem('theme', next)
-    } catch {
-      // ignore storage errors
-    }
-  }
-
-  return (
-    <button
-      onClick={toggle}
-      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-      className="p-2 rounded-lg hover:bg-foreground/10 transition-colors"
-    >
-      {theme === 'dark' ? (
-        // Sun icon — switch to light
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <circle cx="12" cy="12" r="5" />
-          <line x1="12" y1="1" x2="12" y2="3" />
-          <line x1="12" y1="21" x2="12" y2="23" />
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-          <line x1="1" y1="12" x2="3" y2="12" />
-          <line x1="21" y1="12" x2="23" y2="12" />
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-        </svg>
-      ) : (
-        // Moon icon — switch to dark
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      )}
-    </button>
   )
 }

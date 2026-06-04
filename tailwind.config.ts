@@ -5,7 +5,10 @@ const config: Config = {
     './index.html',
     './src/**/*.{ts,tsx}',
   ],
-  darkMode: ['selector', '[data-theme="dark"]'],
+  // Use 'class' strategy with a custom selector so dark: variants fire when
+  // data-theme="dark" is set on <html> (NOT when a "dark" class is present).
+  // This is the correct Tailwind v3 syntax — 'selector' is v4-only.
+  darkMode: ['class', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {

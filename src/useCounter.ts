@@ -27,17 +27,26 @@ export function useCounter(user: AuthUser | null): UseCounterResult {
     }
 
     // user is non-null: hydrate from KV
+    let cancelled = false
     setKvLoading(true)
     app.kv
       .get<number>('count')
       .then((val) => {
-        setCount(val ?? 0)
-        setKvLoading(false)
+        if (!cancelled) {
+          setCount(val ?? 0)
+          setKvLoading(false)
+        }
       })
       .catch(() => {
-        setCount(0)
-        setKvLoading(false)
+        if (!cancelled) {
+          setCount(0)
+          setKvLoading(false)
+        }
       })
+
+    return () => {
+      cancelled = true
+    }
   }, [user])
 
   function increment() {

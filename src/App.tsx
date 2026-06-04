@@ -4,19 +4,13 @@ import { useEffect } from 'react'
 import { app } from './app'
 import { useCounter } from './useCounter'
 
-interface AppProps {
-  kvLoading?: boolean
-}
-
-export default function App({ kvLoading: kvLoadingProp = false }: AppProps) {
+export default function App() {
   const { user, loading } = useProAuth(app)
-  const theme = useTheme(app)
-  const { count, kvLoading: kvLoadingHook, increment } = useCounter(user)
+  const { theme } = useTheme()
+  const { count, kvLoading, increment } = useCounter(user)
 
-  // Merge external kvLoading prop (for future parent wiring) with hook's kvLoading
-  const kvLoading = kvLoadingProp || kvLoadingHook
-
-  // Apply data-theme to <html> so Tailwind dark: variants respond
+  // Apply data-theme to <html> so Tailwind dark: variants respond.
+  // useTheme() already does this internally, but we sync explicitly to be safe.
   useEffect(() => {
     if (theme) {
       document.documentElement.setAttribute('data-theme', theme)
@@ -24,18 +18,18 @@ export default function App({ kvLoading: kvLoadingProp = false }: AppProps) {
   }, [theme])
 
   const isLoading = loading || kvLoading
-  // Unauthenticated: auth resolved AND user is null AND not loading
-  const isUnauthenticated = !loading && !kvLoading && user === null
+  // Unauthenticated: auth resolved AND user is null
+  const isUnauthenticated = !loading && user === null
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/*
         Top bar — exactly 2 direct children:
-        left slot : <ThemeToggle /> (SDK ui component)
-        right slot: <SignInButton> when unauth, <ProfileMenu> when auth/loading
+        left slot: ThemeToggle
+        right slot: SignInButton (unauthenticated) | ProfileMenu (authenticated)
       */}
       <header className="h-12 flex items-center justify-between px-4">
-        {/* Left slot: SDK ThemeToggle — no props */}
+        {/* Left slot: SDK ThemeToggle */}
         <ThemeToggle />
 
         {/* Right slot: auth control */}
@@ -66,12 +60,7 @@ export default function App({ kvLoading: kvLoadingProp = false }: AppProps) {
           )}
         </div>
 
-        {/* Unauthenticated: sign-in CTA in main area (separate from header SignInButton) */}
-        {isUnauthenticated && (
-          <SignInButton app={app} label="Sign in to start counting" />
-        )}
-
-        {/* Authenticated (or loading): increment button */}
+        {/* Increment button — only shown when authenticated */}
         {!isUnauthenticated && (
           <button
             onClick={increment}

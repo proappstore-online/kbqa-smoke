@@ -9,8 +9,7 @@ export default function App() {
   const { theme } = useTheme()
   const { count, kvLoading, increment } = useCounter(user)
 
-  // Apply data-theme to <html> so Tailwind dark: variants respond.
-  // useTheme() already does this internally, but we sync explicitly to be safe.
+  // Sync data-theme to <html> so Tailwind dark: variants respond.
   useEffect(() => {
     if (theme) {
       document.documentElement.setAttribute('data-theme', theme)
@@ -25,19 +24,15 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/*
         Top bar — exactly 2 direct children:
-        left slot: ThemeToggle
-        right slot: SignInButton (unauthenticated) | ProfileMenu (authenticated)
+        left slot:  ThemeToggle
+        right slot: ProfileMenu (always — handles both auth states internally)
       */}
       <header className="h-12 flex items-center justify-between px-4">
         {/* Left slot: SDK ThemeToggle */}
         <ThemeToggle />
 
-        {/* Right slot: auth control */}
-        {isUnauthenticated ? (
-          <SignInButton app={app} label="Sign in to start counting" />
-        ) : (
-          <ProfileMenu app={app} showThemeToggle showBilling={false} />
-        )}
+        {/* Right slot: ProfileMenu (renders sign-in button when unauth'd) */}
+        <ProfileMenu app={app} showThemeToggle showBilling={false} />
       </header>
 
       {/* Main content — fills remaining viewport */}
@@ -60,8 +55,10 @@ export default function App() {
           )}
         </div>
 
-        {/* Increment button — only shown when authenticated */}
-        {!isUnauthenticated && (
+        {/* Action area: increment button when auth'd, sign-in prompt when not */}
+        {isUnauthenticated ? (
+          <SignInButton app={app} label="Sign in to start counting" />
+        ) : (
           <button
             onClick={increment}
             disabled={isLoading}

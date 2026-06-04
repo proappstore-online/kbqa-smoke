@@ -1,101 +1,82 @@
-# KNOWLEDGE.md — kbqa-smoke · Single-Page Counter
+# KNOWLEDGE.md — kbqa-smoke
 
-> **Ground truth for BA, Dev, QA.** Do not build anything that contradicts this file.
-> Last updated by Architect. Source-of-truth references: [PAS SDK docs](https://proappstore.online/skills.md) · [Docs site](https://proappstore.online/docs)
-
----
-
-## 1 · What It Is
-
-A single-page, single-purpose counter app. One button increments a number that is
-persisted **per logged-in user** via `app.kv`. The count is displayed large and
-centred on screen. The whole app is one screen; there is no routing, no nav, no
-settings page.
+> **Ground truth for every team member.** BA, Dev, and QA treat this file (and `docs/`) as the canonical reference. Do not build what isn't here; do not contradict what is.
 
 ---
 
-## 2 · Users & Personas
+## 1. What the app is
 
-| Persona | Description |
-|---------|-------------|
-| **Authenticated user** | Anyone who has signed in with GitHub (or Google). Their count is private to them. |
-| **Anonymous visitor** | Sees the UI but the button is disabled (or prompts sign-in). No count is stored. |
+**kbqa-smoke** is a minimal single-page counter app.
 
-There is **no admin persona**, no moderation, no owner-only screens.
-
----
-
-## 3 · Core Features (in-scope)
-
-1. **Display count** — show the current count as a large number, centred on page.
-2. **Increment** — one prominent button adds 1 to the count and persists it immediately.
-3. **Per-user persistence** — count is stored in `app.kv` keyed to the authenticated user; refreshing the page restores the last value.
-4. **Sign-in / Sign-out** — platform-default auth via `useProAuth`; unauthenticated users see a sign-in prompt.
-5. **Dark mode** — respects system preference via the platform's `useTheme` / `ThemeToggle`.
+- The user sees one large, centred number.
+- One button increments that number.
+- The count is **persisted per-user** via `app.kv` — so each logged-in user has their own counter, and the value survives page reloads.
+- Auth is provided automatically by the PAS platform (GitHub OAuth by default). The app does **not** add its own auth wall — users who aren't signed in simply see a sign-in prompt from the platform shell.
 
 ---
 
-## 4 · Explicit Non-Goals
+## 2. Who it's for
 
-- No decrement, reset, or edit of the count.
-- No shared / global counter visible to other users.
-- No leaderboard or history.
-- No routing / multiple pages.
-- No subscription, payments, or Pro gating.
-- No `app.db`, `app.storage`, `app.ai`, `app.sms`, `app.rooms`, `app.maps`.
-- No custom RBAC / roles (no permission differences between users).
-- No MCP tool surface (no `app.db` tables → `docs/mcp-tools.md` explains the skip).
+| User type | Description |
+|-----------|-------------|
+| Any platform user | Anyone with a PAS account (GitHub OAuth). No special role needed. |
+
+This is a **demo / smoke-test** app. Its primary value is verifying that the PAS SDK's `app.kv` round-trip works end-to-end in a live deployment.
 
 ---
 
-## 5 · Tech Stack
+## 3. Core features
+
+| # | Feature | Notes |
+|---|---------|-------|
+| 1 | Display the current count | Large, centred number; loads from `app.kv` on mount |
+| 2 | Increment button | Reads current value, adds 1, writes back via `app.kv.set` |
+| 3 | Persistence | Count survives page reload via `app.kv` (per-user) |
+| 4 | Platform auth | Handled by `useProAuth` / `ProfileMenu`; not custom-built |
+
+---
+
+## 4. Explicit non-goals
+
+- ❌ No decrement, reset, or step-size controls
+- ❌ No shared / global counter (not using `app.counters`)
+- ❌ No history or time-series log
+- ❌ No custom auth UI or role gating
+- ❌ No `app.db` — this app uses only `app.kv` (free tier primitive)
+- ❌ No server AI, storage, SMS, email, or webhooks
+- ❌ No subscription / paywall
+- ❌ No MCP tool surface (no `app.db` data model)
+- ❌ No multi-page routing
+
+---
+
+## 5. Technology stack
 
 | Layer | Choice |
 |-------|--------|
-| Framework | React 18 + TypeScript (strict) |
-| Build | Vite |
+| Framework | React 18 + TypeScript + Vite |
 | Styling | Tailwind CSS |
-| Platform SDK | `@proappstore/sdk` (single instance, `appId: 'kbqa-smoke'`) |
-| Deployment | Cloudflare (via PAS platform) |
-| License | MIT |
+| Platform SDK | `@proappstore/sdk` (single instance) |
+| Persistence | `app.kv` (free primitive, per-user) |
+| Deploy target | Cloudflare (via PAS platform) |
+| License | MIT (free-tier app) |
 
 ---
 
-## 6 · SDK Primitives Used
+## 6. Reference docs
 
-See **`docs/sdk-plan.md`** for exact signatures.
-
-| Primitive | Purpose |
-|-----------|---------|
-| `app.auth` / `useProAuth` | Sign in, sign out, get current user |
-| `app.kv.get` / `app.kv.set` | Persist the count per user |
-| `useTheme` / `ThemeToggle` | Dark/light mode |
-| `ProfileMenu` | Avatar + sign-out menu in the corner |
+- PAS platform/SDK guide: <https://proappstore.online/skills.md>
+- PAS docs site: <https://proappstore.online/docs>
+- API base: <https://api.proappstore.online>
 
 ---
 
-## 7 · File Map (expected)
+## 7. Linked sub-documents
 
-```
-src/
-  main.tsx          # mounts <App />, initPro
-  App.tsx           # entire app — auth gate + counter UI
-  app.ts            # export const app = initPro({ appId: 'kbqa-smoke' })
-KNOWLEDGE.md
-docs/
-  data-model.md
-  sdk-plan.md
-  mcp-tools.md
-  design.md
-  quality.md
-```
-
----
-
-## 8 · Linked Docs
-
-- [`docs/data-model.md`](docs/data-model.md) — KV key schema
-- [`docs/sdk-plan.md`](docs/sdk-plan.md) — exact SDK signatures
-- [`docs/mcp-tools.md`](docs/mcp-tools.md) — MCP surface (skipped, rationale inside)
-- [`docs/design.md`](docs/design.md) — UX / layout / design system
-- [`docs/quality.md`](docs/quality.md) — quality bar
+| File | Contents |
+|------|----------|
+| [`docs/data-model.md`](docs/data-model.md) | KV key schema (no SQL tables) |
+| [`docs/sdk-plan.md`](docs/sdk-plan.md) | Exact SDK primitives + verified signatures |
+| [`docs/mcp-tools.md`](docs/mcp-tools.md) | MCP tool surface (N/A — no `app.db`) |
+| [`docs/design.md`](docs/design.md) | Layout, design system, dark mode |
+| [`docs/quality.md`](docs/quality.md) | TypeScript, lint, a11y, mobile quality bar |

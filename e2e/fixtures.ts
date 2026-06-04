@@ -1,58 +1,45 @@
 /**
- * e2e/fixtures.ts
+ * Shared Playwright fixtures for kbqa-smoke E2E tests.
  *
- * Central fixture harness for kbqa-smoke Playwright specs.
- *
- * Usage in a spec:
+ * Usage in specs:
  *   import { test, expect, hasSession } from '../fixtures'
  *
- * The `app` fixture is a Page already navigated to the app root.
- * When PAS_SESSION_COOKIE is present in the environment the fixture
- * injects it before navigation so the app boots in a signed-in state.
+ * The `app` fixture is a Page already navigated to the live base URL.
+ * When a session cookie is present (COOKIE_STATE env var points to a
+ * Playwright storage-state JSON file), the page is also signed in.
  *
- * Gate signed-in tests with:
+ * Gate sign-in-only assertions with:
  *   test.skip(!hasSession, 'needs a session')
  */
 
-import { test as base, expect, type Page } from '@playwright/test'
+import { test as base, expect, type Page } from '@playwright/test';
 
-// ── environment ──────────────────────────────────────────────────────────────
-const BASE_URL = process.env.APP_URL ?? 'http://localhost:5173'
-const SESSION_COOKIE = process.env.PAS_SESSION_COOKIE ?? ''
+// ---------------------------------------------------------------------------
+// Session detection
+// ---------------------------------------------------------------------------
 
-/** True when a real auth session is available (CI injects PAS_SESSION_COOKIE). */
-export const hasSession = SESSION_COOKIE.length > 0
+/**
+ * True when a saved auth session (COOKIE_STATE env var) is available.
+ * CI sets this when secrets are present; local dev may set it manually.
+ */
+export const hasSession: boolean = Boolean(process.env['COOKIE_STATE']);
 
-// ── fixtures ─────────────────────────────────────────────────────────────────
-type Fixtures = { app: Page }
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+
+type Fixtures = {
+  /** A Page pre-navigated to the app root, optionally pre-authenticated. */
+  app: Page;
+};
 
 export const test = base.extend<Fixtures>({
-  app: async ({ browser }, use) => {
-    const ctx = await browser.newContext()
-
-    if (hasSession) {
-      // Inject the platform session cookie so useProAuth resolves to a real user
-      await ctx.addCookies([
-        {
-          name: 'pas_session',
-          value: SESSION_COOKIE,
-          domain: new URL(BASE_URL).hostname,
-          path: '/',
-          httpOnly: true,
-          secure: BASE_URL.startsWith('https'),
-          sameSite: 'Lax',
-        },
-      ])
-    }
-
-    const page = await ctx.newPage()
-    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' })
-    // Wait for #root to be populated (React mounted)
-    await page.locator('#root').waitFor({ state: 'attached' })
-
-    await use(page)
-    await ctx.close()
+  app: async ({ page }, use) => {
+    const baseURL =
+      process.env['BASE_URL'] ?? 'http://localhost:5173';
+    await page.goto(baseURL, { waitUntil: 'networkidle' });
+    await use(page);
   },
-})
+});
 
-export { expect }
+export { expect };

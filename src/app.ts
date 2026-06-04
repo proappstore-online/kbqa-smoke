@@ -1,3 +1,2 @@
-import { initPro } from '@proappstore/sdk'
-
-export const app = initPro({ appId: 'kbqa-smoke' })
+import { initPro } from '@proappstore/sdk';
+export const app = initPro({ appId: 'kbqa-smoke' });

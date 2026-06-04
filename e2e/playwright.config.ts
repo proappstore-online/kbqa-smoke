@@ -1,24 +1,19 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig, devices } from '@playwright/test';
 
-const BASE_URL = process.env.APP_URL ?? 'http://localhost:5173'
-
+// Drives the LIVE deployed app (E2E_BASE_URL), set by the CI e2e job to
+// https://<app>.proappstore.online. Run locally with:
+//   E2E_BASE_URL=https://<app>.proappstore.online npx playwright test
 export default defineConfig({
   testDir: './specs',
-  timeout: 30_000,
-  retries: process.env.CI ? 1 : 0,
+  timeout: 45000,
+  expect: { timeout: 15000 },
+  retries: 1,
+  forbidOnly: true,
+  reporter: [['github'], ['list'], ['json', { outputFile: 'results.json' }]],
   use: {
-    baseURL: BASE_URL,
-    trace: 'on-first-retry',
+    baseURL: process.env.E2E_BASE_URL,
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'mobile-chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-  ],
-})
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+});

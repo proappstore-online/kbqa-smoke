@@ -1,44 +1,58 @@
-import { test as base, expect, type Page } from '@playwright/test';
+/**
+ * e2e/fixtures.ts
+ *
+ * Central fixture harness for kbqa-smoke Playwright specs.
+ *
+ * Usage in a spec:
+ *   import { test, expect, hasSession } from '../fixtures'
+ *
+ * The `app` fixture is a Page already navigated to the app root.
+ * When PAS_SESSION_COOKIE is present in the environment the fixture
+ * injects it before navigation so the app boots in a signed-in state.
+ *
+ * Gate signed-in tests with:
+ *   test.skip(!hasSession, 'needs a session')
+ */
 
-// A fixture session token for a throwaway E2E user, injected by the CI e2e job
-// (PAS_E2E_SESSION_TOKEN). It is a normal, revocable platform session — NOT a
-// bypass: the app signs in via the SDK's real OAuth-callback path below.
-const SESSION_TOKEN = process.env.E2E_SESSION_TOKEN || '';
-export const hasSession = SESSION_TOKEN.length > 0;
+import { test as base, expect, type Page } from '@playwright/test'
 
-// Navigate with a few retries so a just-provisioned custom domain that is still
-// warming up (Cloudflare first-deploy propagation) does not read as a failure.
-async function gotoWithRetry(page: Page, path: string) {
-  let lastErr: unknown;
-  // ~60s budget: a brand-new app's custom domain can still be warming up
-  // (Cloudflare first-deploy DNS/route propagation) for the first deploy.
-  for (let i = 0; i < 10; i++) {
-    try {
-      const res = await page.goto(path, { waitUntil: 'domcontentloaded', timeout: 20000 });
-      if (res && res.status() < 500) return;
-      lastErr = new Error('HTTP ' + (res ? res.status() : 'no response'));
-    } catch (e) {
-      lastErr = e;
+// ── environment ──────────────────────────────────────────────────────────────
+const BASE_URL = process.env.APP_URL ?? 'http://localhost:5173'
+const SESSION_COOKIE = process.env.PAS_SESSION_COOKIE ?? ''
+
+/** True when a real auth session is available (CI injects PAS_SESSION_COOKIE). */
+export const hasSession = SESSION_COOKIE.length > 0
+
+// ── fixtures ─────────────────────────────────────────────────────────────────
+type Fixtures = { app: Page }
+
+export const test = base.extend<Fixtures>({
+  app: async ({ browser }, use) => {
+    const ctx = await browser.newContext()
+
+    if (hasSession) {
+      // Inject the platform session cookie so useProAuth resolves to a real user
+      await ctx.addCookies([
+        {
+          name: 'pas_session',
+          value: SESSION_COOKIE,
+          domain: new URL(BASE_URL).hostname,
+          path: '/',
+          httpOnly: true,
+          secure: BASE_URL.startsWith('https'),
+          sameSite: 'Lax',
+        },
+      ])
     }
-    await page.waitForTimeout(6000);
-  }
-  throw lastErr;
-}
 
-// 'app' fixture: a Page already past the sign-in wall when a fixture session is
-// configured. The SDK's auth.init() reads the session from the URL hash, calls
-// /v1/auth/me, persists the session, and clears the hash — the SAME path a real
-// GitHub/Google OAuth callback uses. Without a token, returns an un-authed page
-// (the sign-in screen) so unauthenticated smokes still run.
-export const test = base.extend<{ app: Page; pageErrors: string[] }>({
-  pageErrors: async ({}, use) => { await use([]); },
-  app: async ({ page, pageErrors }, use) => {
-    page.on('pageerror', (e) => pageErrors.push(String(e)));
-    const target = hasSession ? '/#pas_session=' + encodeURIComponent(SESSION_TOKEN) : '/';
-    await gotoWithRetry(page, target);
-    await page.waitForLoadState('networkidle').catch(() => {});
-    await use(page);
+    const page = await ctx.newPage()
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' })
+    // Wait for #root to be populated (React mounted)
+    await page.locator('#root').waitFor({ state: 'attached' })
+
+    await use(page)
+    await ctx.close()
   },
-});
+})
 
-export { expect };
+export { expect }

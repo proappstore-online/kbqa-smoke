@@ -7,14 +7,20 @@ export interface UseCounterResult {
   increment: () => void
 }
 
-export function useCounter(
-  user: { id: string; login: string; avatarUrl: string | null; dateOfBirth: string | null } | null
-): UseCounterResult {
+type AuthUser = {
+  id: string
+  login: string
+  avatarUrl: string | null
+  dateOfBirth: string | null
+}
+
+export function useCounter(user: AuthUser | null): UseCounterResult {
   const [count, setCount] = useState<number>(0)
   const [kvLoading, setKvLoading] = useState<boolean>(false)
 
   useEffect(() => {
     if (user === null) {
+      // Sign-out reset: clear count and loading state
       setCount(0)
       setKvLoading(false)
       return

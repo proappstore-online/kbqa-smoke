@@ -9,7 +9,7 @@ export default function App() {
   const theme = useTheme(app)
   const { count, kvLoading, increment } = useCounter(user)
 
-  // Apply data-theme to <html> so Tailwind dark: variants and SDK theme fire
+  // Apply data-theme to <html> so Tailwind dark: variants respond
   useEffect(() => {
     if (theme) {
       document.documentElement.setAttribute('data-theme', theme)
@@ -17,28 +17,42 @@ export default function App() {
   }, [theme])
 
   const isLoading = loading || kvLoading
-  const isUnauthenticated = !loading && !kvLoading && user === null
-  const isAuthenticated = !loading && !kvLoading && user !== null
+  // Unauthenticated: auth resolved AND user is null
+  const isUnauthenticated = !loading && user === null
+  // Authenticated AND KV hydration complete
+  const isReady = !loading && !kvLoading && user !== null
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      {/* Top bar — exactly 2 direct children: left (ThemeToggle) + right (ProfileMenu) */}
+      {/*
+        Top bar — exactly 2 direct children:
+        left slot: ThemeToggleButton
+        right slot: SignInButton (unauthenticated) | ProfileMenu (authenticated)
+      */}
       <header className="h-12 flex items-center justify-between px-4">
-        {/* Left slot: inline ThemeToggle (SDK ThemeToggle component equivalent) */}
+        {/* Left slot: inline theme toggle */}
         <ThemeToggleButton theme={theme} />
-        {/* Right slot: ProfileMenu */}
-        <ProfileMenu app={app} showThemeToggle showBilling={false} />
+
+        {/* Right slot: auth control */}
+        {isUnauthenticated ? (
+          <SignInButton app={app} label="Sign in to start counting" />
+        ) : (
+          <ProfileMenu app={app} showThemeToggle showBilling={false} />
+        )}
       </header>
 
-      {/* Main content area — fills remaining viewport */}
+      {/* Main content — fills remaining viewport */}
       <main className="flex-1 flex flex-col items-center justify-center gap-8">
         {/* Count display with a11y live region */}
         <div aria-live="polite" aria-atomic="true">
           {isLoading ? (
-            <div className="h-24 w-48 rounded-xl bg-foreground/10 animate-pulse" />
+            <div
+              className="h-24 w-48 rounded-xl bg-foreground/10 animate-pulse"
+              aria-label="Loading count"
+            />
           ) : isUnauthenticated ? (
             <span className="text-6xl sm:text-8xl font-bold tabular-nums text-foreground">
-              —
+              &mdash;
             </span>
           ) : (
             <span className="text-6xl sm:text-8xl font-bold tabular-nums text-foreground">
@@ -47,10 +61,8 @@ export default function App() {
           )}
         </div>
 
-        {/* Action area */}
-        {isUnauthenticated ? (
-          <SignInButton app={app} label="Sign in to start counting" />
-        ) : (
+        {/* Increment button — only shown when authenticated */}
+        {!isUnauthenticated && (
           <button
             onClick={increment}
             disabled={isLoading}
@@ -65,8 +77,7 @@ export default function App() {
   )
 }
 
-// ThemeToggle rendered in the left slot of the top bar.
-// Uses useTheme hook to show sun/moon icon and toggle between light/dark.
+// Theme toggle button in the left slot of the top bar.
 function ThemeToggleButton({ theme }: { theme: string | null }) {
   function toggle() {
     const next = theme === 'dark' ? 'light' : 'dark'
@@ -85,7 +96,7 @@ function ThemeToggleButton({ theme }: { theme: string | null }) {
       className="p-2 rounded-lg hover:bg-foreground/10 transition-colors"
     >
       {theme === 'dark' ? (
-        // Sun icon — shown in dark mode to switch to light
+        // Sun icon — switch to light
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="20"
@@ -109,7 +120,7 @@ function ThemeToggleButton({ theme }: { theme: string | null }) {
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
       ) : (
-        // Moon icon — shown in light mode to switch to dark
+        // Moon icon — switch to dark
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="20"

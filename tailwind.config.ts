@@ -9,15 +9,10 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Semantic tokens — fall back to concrete values if CSS vars are not injected
-        background: 'var(--background, #ffffff)',
-        foreground: 'var(--foreground, #111827)',
-        border: 'var(--border, #e5e7eb)',
-        muted: 'var(--muted, #f3f4f6)',
-        primary: {
-          DEFAULT: 'var(--primary, #3b82f6)',
-          foreground: 'var(--primary-foreground, #ffffff)',
-        },
+        primary: 'rgb(99 102 241)',
+        'primary-foreground': 'rgb(255 255 255)',
+        background: 'rgb(255 255 255)',
+        foreground: 'rgb(15 23 42)',
       },
     },
   },

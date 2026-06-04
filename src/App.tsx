@@ -1,46 +1,95 @@
-import { useState, useEffect } from 'react'
 import { useProAuth, useTheme } from '@proappstore/sdk/hooks'
 import { ProfileMenu, SignInButton } from '@proappstore/sdk/ui'
+import { useEffect } from 'react'
 import { app } from './app'
 import { useCounter } from './useCounter'
 
-/**
- * Drives the data-theme attribute on <html> based on stored preference.
- * Works alongside useTheme(app) — useTheme handles the platform integration
- * while this hook manages the toggle state.
- */
-function useDarkMode() {
-  const [dark, setDark] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    const stored = localStorage.getItem('pas-theme')
-    if (stored !== null) return stored === 'dark'
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-  })
+export default function App() {
+  const { user, loading } = useProAuth(app)
+  const theme = useTheme(app)
+  const { count, kvLoading, increment } = useCounter(user)
 
+  // Apply data-theme to <html> so Tailwind dark: variants and SDK theme fire
   useEffect(() => {
-    const value = dark ? 'dark' : 'light'
-    document.documentElement.setAttribute('data-theme', value)
-    localStorage.setItem('pas-theme', value)
-  }, [dark])
+    if (theme) {
+      document.documentElement.setAttribute('data-theme', theme)
+    }
+  }, [theme])
 
-  return { dark, toggle: () => setDark((d) => !d) }
+  const isLoading = loading || kvLoading
+  const isUnauthenticated = !loading && !kvLoading && user === null
+  const isAuthenticated = !loading && !kvLoading && user !== null
+
+  return (
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
+      {/* Top bar — exactly 2 direct children: left (ThemeToggle) + right (ProfileMenu) */}
+      <header className="h-12 flex items-center justify-between px-4">
+        {/* Left slot: inline ThemeToggle (SDK ThemeToggle component equivalent) */}
+        <ThemeToggleButton theme={theme} />
+        {/* Right slot: ProfileMenu */}
+        <ProfileMenu app={app} showThemeToggle showBilling={false} />
+      </header>
+
+      {/* Main content area — fills remaining viewport */}
+      <main className="flex-1 flex flex-col items-center justify-center gap-8">
+        {/* Count display with a11y live region */}
+        <div aria-live="polite" aria-atomic="true">
+          {isLoading ? (
+            <div className="h-24 w-48 rounded-xl bg-foreground/10 animate-pulse" />
+          ) : isUnauthenticated ? (
+            <span className="text-6xl sm:text-8xl font-bold tabular-nums text-foreground">
+              —
+            </span>
+          ) : (
+            <span className="text-6xl sm:text-8xl font-bold tabular-nums text-foreground">
+              {count}
+            </span>
+          )}
+        </div>
+
+        {/* Action area */}
+        {isUnauthenticated ? (
+          <SignInButton app={app} label="Sign in to start counting" />
+        ) : (
+          <button
+            onClick={increment}
+            disabled={isLoading}
+            aria-label="Increment counter"
+            className="rounded-2xl px-8 py-4 text-lg font-semibold bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition min-w-[10rem] disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            +
+          </button>
+        )}
+      </main>
+    </div>
+  )
 }
 
-/** Icon-only theme toggle — renders as a <button> in the left header slot */
-function ThemeToggleButton({ dark, onToggle }: { dark: boolean; onToggle: () => void }) {
+// ThemeToggle rendered in the left slot of the top bar.
+// Uses useTheme hook to show sun/moon icon and toggle between light/dark.
+function ThemeToggleButton({ theme }: { theme: string | null }) {
+  function toggle() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    document.documentElement.setAttribute('data-theme', next)
+    try {
+      localStorage.setItem('theme', next)
+    } catch {
+      // ignore storage errors
+    }
+  }
+
   return (
     <button
-      type="button"
-      onClick={onToggle}
-      aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-      className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-700 dark:text-gray-200"
+      onClick={toggle}
+      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      className="p-2 rounded-lg hover:bg-foreground/10 transition-colors"
     >
-      {dark ? (
-        /* Sun */
+      {theme === 'dark' ? (
+        // Sun icon — shown in dark mode to switch to light
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          width="18"
-          height="18"
+          width="20"
+          height="20"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -49,15 +98,22 @@ function ThemeToggleButton({ dark, onToggle }: { dark: boolean; onToggle: () => 
           strokeLinejoin="round"
           aria-hidden="true"
         >
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
       ) : (
-        /* Moon */
+        // Moon icon — shown in light mode to switch to dark
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          width="18"
-          height="18"
+          width="20"
+          height="20"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -70,88 +126,5 @@ function ThemeToggleButton({ dark, onToggle }: { dark: boolean; onToggle: () => 
         </svg>
       )}
     </button>
-  )
-}
-
-export default function App() {
-  // SDK theme hook — applies data-theme to <html> via the platform
-  useTheme(app)
-
-  // Local dark-mode state for toggle button
-  const { dark, toggle } = useDarkMode()
-
-  const { user, loading } = useProAuth(app)
-  const { count, kvLoading, increment } = useCounter(user)
-
-  const buttonDisabled = loading || kvLoading || user === null
-
-  return (
-    <div className="min-h-screen flex flex-col">
-      {/* ── Top bar ────────────────────────────────────────────────────── */}
-      {/* Exactly 2 direct children: left slot (ThemeToggle), right slot (ProfileMenu) */}
-      <header className="h-12 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
-        {/* Left slot: theme toggle */}
-        <div>
-          <ThemeToggleButton dark={dark} onToggle={toggle} />
-        </div>
-
-        {/* Right slot: ProfileMenu (authenticated) or SignInButton (unauthenticated) */}
-        <div>
-          {user !== null ? (
-            <ProfileMenu app={app} showThemeToggle={false} showBilling={false} />
-          ) : (
-            <SignInButton app={app} label="Sign in" />
-          )}
-        </div>
-      </header>
-
-      {/* ── Main content ───────────────────────────────────────────────── */}
-      <main className="flex flex-1 flex-col items-center justify-center gap-8">
-        {/* Count display — aria-live so screen readers announce updates */}
-        <div
-          aria-live="polite"
-          aria-atomic="true"
-          className="text-8xl font-bold tabular-nums select-none"
-        >
-          {loading ? (
-            /* Auth resolving */
-            <div
-              className="animate-pulse w-32 h-20 rounded-xl bg-gray-200 dark:bg-gray-700"
-              aria-label="Loading count"
-            />
-          ) : user === null ? (
-            /* Signed out */
-            <span>&#8212;</span>
-          ) : kvLoading ? (
-            /* KV hydrating */
-            <div
-              className="animate-pulse w-32 h-20 rounded-xl bg-gray-200 dark:bg-gray-700"
-              aria-label="Loading count"
-            />
-          ) : (
-            /* Ready */
-            <span>{count}</span>
-          )}
-        </div>
-
-        {/* Increment button — only rendered when authenticated */}
-        {!loading && user !== null && (
-          <button
-            type="button"
-            onClick={increment}
-            disabled={buttonDisabled}
-            aria-label="Increment counter"
-            className="rounded-2xl px-8 py-4 bg-primary text-primary-foreground text-xl font-semibold hover:opacity-90 active:scale-95 disabled:opacity-40 min-w-[10rem] transition-all"
-          >
-            +1
-          </button>
-        )}
-
-        {/* Sign-in CTA — only rendered when signed out and not loading */}
-        {!loading && user === null && (
-          <SignInButton app={app} label="Sign in to start counting" />
-        )}
-      </main>
-    </div>
   )
 }

@@ -1,26 +1,3 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* ── Semantic colour tokens ───────────────────────────────────────────────
-   Provide default values so Tailwind utilities like bg-primary work
-   even when the platform SDK hasn't injected its own CSS variables.
-   The platform may override these at runtime.
-   ────────────────────────────────────────────────────────────────────── */
-:root {
-  --background: #ffffff;
-  --foreground: #111827;
-  --border: #e5e7eb;
-  --muted: #f3f4f6;
-  --primary: #3b82f6;
-  --primary-foreground: #ffffff;
-}
-
-[data-theme="dark"] {
-  --background: #0f172a;
-  --foreground: #f8fafc;
-  --border: #334155;
-  --muted: #1e293b;
-  --primary: #60a5fa;
-  --primary-foreground: #0f172a;
-}

@@ -1,25 +1,23 @@
 # MCP Tools — kbqa-smoke
 
-## Status: Not Applicable
+## Status: N/A
 
-This app uses **`app.kv` only** — there are no `app.db` SQL tables.
+This app uses **only `app.kv`** for persistence. There is no `app.db` (no SQLite/D1 tables).
 
-MCP tools are designed to expose structured database entities to external AI agents
-(read/write operations on named tables). Because there is no `app.db` in this app,
-there is no meaningful MCP surface to define.
+The MCP tool surface is defined per entity backed by `app.db`. Since kbqa-smoke has no database entities, **no MCP tools are required or specified**.
 
-### If the app ever gains SQL tables
+---
 
-Should a future iteration add `app.db` (e.g. a count-history log table), return
-here and add tool definitions following this schema:
+## If the app is ever extended with `app.db`
 
-```md
-### tool_name
-- **Description:** one-line description
-- **Type:** read | write
-- **Table(s):** table_name (columns touched)
-- **Params:** `{ param: type }` — description
-- **Scope:** per-user | shared
+If a future iteration adds a database (e.g. a leaderboard or history log), revisit this file and define tools following the pattern:
+
+```
+tool name        — one-line description
+read | write     — operation type
+table/columns    — what it touches
+params           — input shape
+scope            — per-user | shared
 ```
 
-Until then, no `mcp.json` should be generated for this app.
+For now, no `mcp.json` should be created for this app.

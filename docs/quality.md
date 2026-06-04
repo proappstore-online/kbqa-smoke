@@ -1,92 +1,78 @@
 # Quality Bar — kbqa-smoke
 
-All items below are **required** before a build is considered shippable.
+Every PR and every generated code change **must** satisfy all of the following.
 
 ---
 
 ## TypeScript
 
-- `tsc --noEmit` must pass with **zero errors**.
-- `as any` is **banned** — use proper generics (e.g. `app.kv.get<number>('count')`).
-- `@ts-ignore` and `@ts-expect-error` are **banned** unless accompanied by a code-reviewed justification comment.
-- All SDK call sites must use the exact types documented in `docs/sdk-plan.md`:
-  - `user.login` not `user.name`
-  - `user.id` not `user.email`
-  - `app.kv.get<number>(...)` — generic parameter required, otherwise `rows` / return is `unknown`
+- `tsc --noEmit` exits **0** — no type errors.
+- TypeScript `strict` mode is **on** (noImplicitAny, strictNullChecks, etc.).
+- **Zero `as any`** — forbidden. Use proper generics or type guards.
+- **Zero `@ts-ignore` / `@ts-expect-error`** — forbidden unless paired with a
+  comment explaining why it cannot be resolved and approved by the team.
+- All `app.kv.get<T>` calls must pass the generic type parameter — e.g.
+  `app.kv.get<number>('count')` — so the return type is `number | null`, not `unknown | null`.
+- The `user` object is typed exactly as
+  `{ id: string; login: string; avatarUrl: string | null; dateOfBirth: string | null }`.
+  Never access `user.name` or `user.email` — they do not exist and break the build.
 
 ---
 
-## Lint
+## SDK Import Rules
 
-- ESLint (or Biome) must report **zero errors**.
+| What | Correct import path | Wrong path (fails `tsc`) |
+|------|--------------------|--------------------------|
+| `initPro` | `@proappstore/sdk` | anything else |
+| Hooks (`useProAuth`, `useTheme`, …) | `@proappstore/sdk/hooks` | `@proappstore/sdk` |
+| UI components (`SignInButton`, `ProfileMenu`, …) | `@proappstore/sdk/ui` | `@proappstore/sdk` |
+| `ProShell` | `@proappstore/sdk/shell` | `@proappstore/sdk/ui` |
+
+---
+
+## Linting
+
+- ESLint passes with **zero errors**.
+- `react-hooks/exhaustive-deps` rule is on — all hook dependencies must be declared.
 - No unused imports or variables.
-- Consistent quote style and trailing commas (enforced by config, not by hand).
-
----
-
-## Import hygiene
-
-Verify these at review time — wrong paths are a common `tsc` failure:
-
-| What | Correct import path |
-|------|--------------------|
-| `initPro` | `@proappstore/sdk` |
-| `useProAuth` | `@proappstore/sdk/hooks` |
-| `ProfileMenu`, `SignInButton` | `@proappstore/sdk/ui` |
-
-Importing hooks or components from the root `@proappstore/sdk` will compile-fail.
 
 ---
 
 ## Accessibility (a11y)
 
-- The counter value must be announced to screen readers (`aria-live="polite"` on the count element so increment is announced without focus change).
-- The increment button must have an accessible name (`aria-label` or visible text).
-- Keyboard navigation: button reachable by Tab, activated by Enter/Space.
-- Colour contrast ratio ≥ 4.5:1 (WCAG AA) for both light and dark themes.
-- No `role` or `aria-*` attributes used incorrectly.
+- Counter element has `aria-live="polite"` + `aria-atomic="true"`.
+- Increment button has a meaningful `aria-label`.
+- All interactive elements are focusable and show a `:focus-visible` ring.
+- No colour is used as the sole means of conveying information.
+- Minimum tap target 44 × 44 px on mobile.
 
 ---
 
-## Mobile / responsive
+## Performance
 
-- Layout must render correctly on viewports from 320 px wide.
-- Touch target for the increment button ≥ 44 × 44 px.
-- No horizontal scroll at any viewport width.
-- Test on both iOS Safari and Chrome for Android (or emulators).
-
----
-
-## Functional correctness
-
-| Scenario | Expected behaviour |
-|----------|--------------------|  
-| First visit (signed in, no KV value) | Count shows `0` |
-| Increment clicked | Count increments by exactly 1; value persisted to `app.kv` |
-| Page reload after increment | Count restored to last persisted value |
-| Signed-out user | Sign-in prompt shown; no counter rendered; no `app.kv` call attempted |
-| Double-click on increment | Button disabled during kv write; count increments by 1 only |
-| Network error on kv write | User sees an error state or toast; count does **not** advance in UI |
+- KV read (`app.kv.get`) is called once on mount (after user resolves), not on every render.
+- KV write (`app.kv.set`) is called once per click; no debouncing needed (single fast write).
+- No unnecessary re-renders: the increment handler is stable (`useCallback` or defined outside render).
 
 ---
 
-## Build
+## Error Handling
 
-- `vite build` completes with no errors.
-- Bundle size: no unnecessary heavy dependencies (this is a trivial app).
-- No `console.error` or unhandled promise rejections in the browser console during normal use.
+- If `app.kv.get` rejects, catch the error and show a non-blocking inline error message (do not crash the page).
+- If `app.kv.set` rejects, roll back the optimistic state update and surface a brief error.
+- Never swallow errors silently.
 
 ---
 
-## Review checklist
+## Testing Checklist (manual QA gates)
 
-- [ ] `tsc --noEmit` clean
-- [ ] ESLint/Biome clean
-- [ ] No `as any` / `@ts-ignore`
-- [ ] Correct SDK import paths
-- [ ] `aria-live="polite"` on count
-- [ ] Button has accessible name
-- [ ] Button disabled during in-flight kv write
-- [ ] Signed-out state handled (no kv call before auth)
-- [ ] Mobile layout verified at 320 px
-- [ ] Both light and dark themes pass contrast check
+| Scenario | Expected |
+|----------|----------|
+| First visit, signed out | Sign-in prompt visible; count area hidden or shows `—` |
+| Sign in | Count loads from KV (or shows `0` for new user) |
+| Click increment | Count increments immediately (optimistic); button re-enabled after persist |
+| Refresh page | Count matches last persisted value |
+| Sign out | Count area resets; sign-in prompt reappears |
+| Dark mode toggle | UI switches without flash or layout shift |
+| Viewport 375 px wide | No horizontal scroll; count and button readable and tappable |
+| KV write failure | Optimistic update rolls back; error message shown |

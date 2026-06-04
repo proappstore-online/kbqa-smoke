@@ -2,78 +2,80 @@
 
 ## Layout
 
-Single page, no routing. The entire visible UI is centred vertically and horizontally on the viewport.
+Single screen. No routing, no sidebar, no nav bar.
 
 ```
-┌─────────────────────────────────┐
-│  [ProfileMenu]             top-right corner (absolute/fixed) │
-│                                 │
-│                                 │
-│              42                 │  ← count, very large font
-│                                 │
-│         [ + Increment ]         │  ← single action button
-│                                 │
-└─────────────────────────────────┘
+┌─────────────────────────────────────┐
+│  [ThemeToggle]         [ProfileMenu] │  ← thin top bar, h-12
+│                                     │
+│                                     │
+│              1 2 3 4 5              │  ← count, ~8xl/9xl, bold, centred
+│                                     │
+│           [ + Increment ]           │  ← single large button, centred
+│                                     │
+└─────────────────────────────────────┘
 ```
 
-- The count and button sit in a vertical flex column, centred in the full-height viewport (`min-h-screen flex flex-col items-center justify-center`).
-- `<ProfileMenu>` is positioned in the top-right corner and does not interfere with the centred content.
+- Top bar is minimal: `ThemeToggle` on the left, `ProfileMenu` on the right.
+- The rest of the viewport is a single flex column centred both axes.
+- **No other UI elements.** No labels, no sub-text, no history, no decorations.
 
 ---
 
-## Design system
+## Unauthenticated State
 
-### Typography
+When `user === null` and `loading === false`:
 
-| Element | Tailwind class suggestion | Notes |
-|---------|--------------------------|-------|
-| Count number | `text-8xl font-bold tabular-nums` | Should be legible at a glance |
-| Button label | `text-lg font-semibold` | Clear CTA |
-
-### Colour
-
-- Use **Tailwind semantic colours** (`text-foreground`, `bg-background`, or equivalent) — never hardcode hex values.
-- Dark mode is handled by the platform's `ThemeToggle` / `ProfileMenu`. The app must not implement its own theme switcher.
-- Button: use a primary accent colour (`bg-indigo-600 hover:bg-indigo-700` or Tailwind's primary scale) with sufficient contrast against both light and dark backgrounds.
-
-### Spacing
-
-- Gap between count and button: `gap-8` (2 rem).
-- Button padding: `px-8 py-3`.
-- Button border-radius: `rounded-xl`.
+- The count area shows `—` (em-dash) or is hidden.
+- The increment button is replaced by (or below) a `<SignInButton app={app} />`.
+- Copy: `"Sign in to start counting"`.
 
 ---
 
-## States
+## Loading State
 
-| State | UI behaviour |
-|-------|--------------|
-| `loading` (auth resolving) | Show a neutral loading indicator instead of the counter |
-| `signed-out` | Show `<SignInButton app={app} />` instead of the counter + button |
-| `ready` (user signed in) | Show count + increment button |
-| `incrementing` (kv write in-flight) | Disable button (prevent double-click); optimistic update is acceptable |
+While `loading === true` (auth resolution) or while fetching the KV value:
+
+- Show a subtle pulse/skeleton in place of the count number.
+- Button is disabled and shows no spinner (keep it simple).
 
 ---
 
-## Dark mode
+## Tailwind Conventions
 
-- Tailwind's `dark:` variant is active via the platform's dark-mode class on `<html>`.
-- The SDK's `<ProfileMenu showThemeToggle />` provides the theme toggle — the app does not need to add one separately unless desired.
-- Always test both light and dark modes before shipping.
+| Token | Usage |
+|-------|-------|
+| `text-8xl font-bold tabular-nums` | Count display |
+| `text-foreground` | Primary text colour |
+| `bg-background` | Page background |
+| `rounded-2xl px-8 py-4 text-lg font-semibold` | Increment button |
+| `bg-primary text-primary-foreground` | Increment button colour |
+| `hover:opacity-90 active:scale-95 transition` | Button interaction |
+| `disabled:opacity-40 disabled:cursor-not-allowed` | Disabled state |
+
+---
+
+## Dark Mode
+
+- The platform SDK manages dark mode via `data-theme` on `<html>`.
+- Use Tailwind `dark:` variants for any custom overrides.
+- `<ThemeToggle />` (from `@proappstore/sdk/ui`) provides the toggle; no custom toggle needed.
+- System preference is respected on first visit.
 
 ---
 
 ## Accessibility
 
-- The count `<div>` / `<p>` must have an accessible label: `aria-label="Current count"` or be wrapped in a `<section aria-label="Counter">`.
-- The increment button must have descriptive text or `aria-label="Increment counter"`.
-- Focus ring must be visible (`focus-visible:ring-2 focus-visible:ring-indigo-500`).
-- No reliance on colour alone to convey state.
+- The counter `<div>` must carry `aria-live="polite"` and `aria-atomic="true"` so screen readers announce each new value.
+- The increment button must have a descriptive `aria-label` (e.g. `"Increment counter"`) in case icon-only rendering is ever added.
+- All interactive elements must be reachable by keyboard and have a visible `:focus-visible` ring.
+- Minimum tap target: 44 × 44 px.
 
 ---
 
 ## Mobile
 
-- The layout is inherently responsive (flex-centred).
-- Touch target for the button: minimum 44 × 44 px (`min-h-[44px] min-w-[44px]`).
-- No horizontal overflow; count truncation is not a concern for realistic values.
+- The layout is a single centred column — it naturally adapts.
+- Count font size may scale down on small viewports: `text-6xl sm:text-8xl`.
+- Button should span at least `w-40` to remain comfortably tappable.
+- No horizontal scroll at any viewport width.
